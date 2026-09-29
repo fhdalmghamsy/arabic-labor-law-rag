@@ -1,0 +1,5 @@
+.env
+__pycache__/
+*.pyc
+docs/labor-law-old.pdf
+docs/labor-law.txt
