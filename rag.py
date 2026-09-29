@@ -1,4 +1,5 @@
 import os
+import json
 import time
 import chromadb
 from chromadb.utils import embedding_functions
@@ -12,7 +13,17 @@ embed_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
     model_name="intfloat/multilingual-e5-small"
 )
 db = chromadb.PersistentClient(path="chroma_db")
-collection = db.get_collection(name="labor_law", embedding_function=embed_fn)
+collection = db.get_or_create_collection(name="labor_law", embedding_function=embed_fn)
+
+# Build the index on first run (e.g. on a fresh server)
+if collection.count() == 0:
+    with open("docs/articles.json", encoding="utf-8") as f:
+        articles = json.load(f)
+    collection.add(
+        documents=["passage: " + f"{a['article']}: {a['text']}".replace("ـ", "") for a in articles],
+        ids=[str(i) for i in range(len(articles))],
+        metadatas=[{"article": a["article"]} for a in articles],
+    )
 
 # Models to try in order; each has its own free daily quota
 MODELS = [
@@ -49,6 +60,7 @@ def rewrite_query(question):
     # Turn colloquial questions into formal legal wording
     prompt = f"""أعد صياغة السؤال التالي بلغة نظامية فصحى تشبه صياغة مواد نظام العمل السعودي.
 استخدم المصطلحات النظامية، مثل: "الأجر" بدل "الراتب"، و"صاحب العمل" بدل "الشركة" أو "المدير"، و"إنهاء العقد" بدل "الفصل".
+حافظ على الكلمات المحددة في السؤال كما هي، مثل: السفينة، البحار، المتدرب، الحدث.
 اكتب السؤال المعاد صياغته فقط دون أي شرح.
 
 السؤال: {question}"""
@@ -73,7 +85,6 @@ def fuse(list_a, list_b, k=6, c=60):
 
 
 def ask(question, k=6):
-    # Step 1: search with both the original and the rewritten question, then fuse
     rewritten = rewrite_query(question)
     titles_a, docs_a = search(question)
     titles_b, docs_b = search(rewritten)
@@ -84,7 +95,6 @@ def ask(question, k=6):
     docs = [text_by_title[t] for t in top_titles]
     context = "\n\n".join(docs)
 
-    # Step 2: answer from the retrieved articles only
     prompt = f"""أنت مساعد قانوني متخصص في نظام العمل السعودي.
 أجب عن السؤال بالاعتماد فقط على المواد النظامية أدناه.
 
