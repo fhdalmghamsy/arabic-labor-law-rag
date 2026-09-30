@@ -1,8 +1,8 @@
 # Arabic Legal Assistant — Saudi Labor Law RAG
 
 An AI assistant that answers questions about the Saudi Labor Law — including questions written in Saudi dialect — with answers grounded in the official text and cited by article.
+**Live demo:** (https://saudi-labor-law-assistant.streamlit.app/)
 
-![App screenshot](screenshot.png)
 
 ## The Problem
 
